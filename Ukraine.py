@@ -46,7 +46,7 @@ def Ukraine():
 		ic = item.get()["claims"]
 		id = item.get()["descriptions"]
 		def defineAs(a): # function for setting descriptions
-			item.editDescriptions(descriptions={'en': a}, summary=u'set description based on P31 (TEST RUN; block if malfunctioning)')
+			item.editDescriptions(descriptions={'en': a}, summary=(u'added [en] description "' + a + '", using P17, P31, and P131 values')))
 		# various steps to weed through the ones we don't want and pick out the ones we do
 		if ic:
 			if "P31" in ic:
