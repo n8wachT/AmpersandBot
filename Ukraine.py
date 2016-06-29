@@ -18,6 +18,7 @@ import pywikibot
 import urllib.request
 from urllib.request import urlopen
 import json
+from unidecode import unidecode
 
 total = 0
 blcont = "start"
@@ -45,8 +46,11 @@ def Ukraine():
 		item = pywikibot.ItemPage(repo, title)
 		ic = item.get()["claims"]
 		id = item.get()["descriptions"]
+		il = item.get()["labels"]
 		def defineAs(a): # function for setting descriptions
 			item.editDescriptions(descriptions={'en': a}, summary=(u'added [en] description "' + a + '", using P17, P31, and P131 values')))
+		def labelAs(a): # function for setting labels
+			item.editLabels(labels={'en': a}, summary=(u'set label to ' + a + " based on automated romanization of Ukrainian label")
 		# various steps to weed through the ones we don't want and pick out the ones we do
 		if ic:
 			if "P31" in ic:
@@ -78,6 +82,10 @@ def Ukraine():
 							log(title)
 							print("updated " + title)					
 						total += 1
+					if not "en" in il and "uk" in il:
+						ukval = il["uk"]
+						ukroman = unidecode(ukval)
+						labelAs(ukroman)
 				else:
 					print(title + " already described") # marker in cmd line for non-updated items
 					
