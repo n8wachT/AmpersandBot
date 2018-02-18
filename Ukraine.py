@@ -38,8 +38,16 @@ def Ukraine():
 		il = item.get()["labels"]
 		# various steps to weed through the ones we don't want and pick out the ones we do:
 		if "P31" in ic:
-			p31val = str(ic["P31"][0].getTarget()) # get value of "instance of"
-			p17val = str(ic["P17"][0].getTarget()) # "   "     "  "country"
+			try:
+				p31val = str(ic["P31"][0].getTarget()) # get value of "instance of"
+			except (KeyError): # in case no P31
+				log("noP31",title,"")
+				print("noP31: " + title)
+			try:
+				p17val = str(ic["P17"][0].getTarget()) # "   "     "  "country"
+			except (KeyError): # "  "    "  P17
+				log("noP17",title,"")
+				print("noP17: " + title)
 			if p31val == "[[wikidata:Q21672098]]" and p17val == "[[wikidata:Q212]]": # is it an administrative entity, and is it in Ukraine?
 				if id.get("en"): # is there an English-language description?
 					badDescs = ("Ukrainian village","village in Ukraine","village of Ukraine","administrative territorial entity of Ukraine")
@@ -99,6 +107,7 @@ def defineItem(item,ic,il,title):
 	else:
 		log("noP131",title,"")
 		print("noP131: " + title)
+		
 def labelItem(item,il,title):
 	def labelAs(a): # function for setting labels
 		item.editLabels(labels={'en': a}, summary=(u'set [en] label to "' + a + '" based on automated romanization of Ukrainian label'))
@@ -125,7 +134,7 @@ def labelItem(item,il,title):
 # would be useful for adapting script to other tasks
 blcont = "&"
 while blcont:
-	API = urlopen(u"https://www.wikidata.org/w/api.php?action=query&list=backlinks&bltitle=Q21672098&bllimit=5000&indexpageids=&format=json" + blcont).read()
+	API = urlopen(u"https://www.wikidata.org/w/api.php?action=query&list=backlinks&bltitle=Q21672098&bllimit=5000&indexpageids=&blnamespace=0&format=json" + blcont).read()
 	API_decode = API.decode(encoding="utf-8", errors="strict")
 	API_JSON = json.loads(API_decode)
 
