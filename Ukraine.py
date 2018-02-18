@@ -14,16 +14,12 @@ import unidecode
 from unidecode import unidecode
 import sys
 
-max = 10
+max = 15000
 total = 0
-	
-# following part possibly still buggy. only thing that didn't 
-# work in test run. has been modified since, in a way that 
-# hopefully will work. not super important, but would like to fix.
 	
 def log(a,b,c):
 	with open("C:\\Users\\Tom\\Desktop\\python\\AmpersandBot\\" + a + ".txt", "a") as file:
-		file.write(b + " " + c + " \n")
+		file.write("[[" + b + "]] " + c + " \n")
 	
 # the function at the script's core
 	
@@ -40,51 +36,60 @@ def Ukraine():
 		ic = item.get()["claims"]
 		id = item.get()["descriptions"]
 		il = item.get()["labels"]
-		# various steps to weed through the ones we don't want and pick out the ones we do
-		if ic:
-			if "P31" in ic:
-				p31val = str(ic["P31"][0].getTarget())
-				p17val = str(ic["P17"][0].getTarget())
-				if p31val == "[[wikidata:Q21672098]]":
-					if p17val == "[[wikidata:Q212]]":
-						if id.get("en"):
-							badDescs = ("Ukrainian village","village in Ukraine","village of Ukraine","administrative territorial entity of Ukraine")
-							if id.get("en") in badDescs:
-								updateItem(item,ic,il,title)
-							else:
-								print(title + " already properly described and labeled") # marker in cmd line for non-updated items
-						else:
-						 updateItem(item,ic,il,title)
-						
+		# various steps to weed through the ones we don't want and pick out the ones we do:
+		if "P31" in ic:
+			p31val = str(ic["P31"][0].getTarget()) # get value of "instance of"
+			p17val = str(ic["P17"][0].getTarget()) # "   "     "  "country"
+			if p31val == "[[wikidata:Q21672098]]" and p17val == "[[wikidata:Q212]]": # is it an administrative entity, and is it in Ukraine?
+				if id.get("en"): # is there an English-language description?
+					badDescs = ("Ukrainian village","village in Ukraine","village of Ukraine","administrative territorial entity of Ukraine")
+					if id.get("en") in badDescs: # is the description basic?
+						defineItem(item,ic,il,title)
 					else:
-						log("P17errors",title,"")
-						print("P17error: " + title)
+						print(title + " already properly described") # marker in cmd line for no description update
+				else:
+				 defineItem(item,ic,il,title)
+				
+			else:
+				log("P17errors",title,"")
+				print("P17error: " + title)
+		if not "en" in il and "uk" in il: # is there a Ukrainian label, but not an English one?
+			labelItem(item,il,title)
+		else:
+			print(title + " already properly labeled") # marker in cmd line for no label update
 
-def updateItem(item,ic,il,title):
+def defineItem(item,ic,il,title):
 	def defineAs(a): # function for setting descriptions
 		item.editDescriptions(descriptions={'en': a}, summary=(u'added [en] description "' + a + '", using P17, P31, and P131 values'))
-	def labelAs(a): # function for setting labels
-		item.editLabels(labels={'en': a}, summary=(u'set [en] label to "' + a + '" based on automated romanization of Ukrainian label'))
-	if "P131" in ic:
-		p131val = ic["P131"][0].getTarget()
-		if "en" in p131val.get()["labels"]:
-			p131label = p131val.get()["labels"]["en"]
-			level2c = p131val.claims
-			if "P131" in level2c:
-				level2val = level2c["P131"][0].getTarget()
-				if "en" in level2val.get()["labels"]:
-					level2label = level2val.get()["labels"]["en"]
-					if total < max:
+	if "P131" in ic: # does the item have a parent entity listed?
+		p131val = ic["P131"][0].getTarget() # the parent entity
+		if "en" in p131val.get()["labels"]: # does the entity have an English label?
+			p131label = p131val.get()["labels"]["en"] # the English label of the parent entity
+			level2c = p131val.claims # claims taken from the parent entity
+			if "P131" in level2c: # does *that* entity have a parent entity listed?
+				level2val = level2c["P131"][0].getTarget() # the grandparent entity
+				level3c = level2val.get()["claims"] # claims taken from the grandparent entity (doing it the other way doesn't work, for w/e reason)
+				if str(level3c["P31"][0].getTarget()) == "[[wikidata:Q3348196]]": # is the grandparent entity an oblast of Ukraine
+					if "en" in level2val.get()["labels"]: # and does it have an English label?
+						level2label = level2val.get()["labels"]["en"]
 						global total
-						total += 1
-						defineAs("village in " + p131label + ", " + level2label + ", Ukraine")
-						log("updates",title,"description") # for consultation after run
-						print("updated " + title + " description (#" + str(total) + ")") # marker in cmd line for updated items
+						if total < max:
+							total += 1
+							try:
+								defineAs("village in " + p131label + ", " + level2label + ", Ukraine")
+								log("updates",title,"description") # for consultation after run
+								print("updated " + title + " description (#" + str(total) + ")") # marker in cmd line for updated items	
+							except pywikibot.exceptions.OtherPageSaveError:
+								log("dupeErrors",title,"")
+								print("dupeError: " + title)
+						else:
+							sys.exit("total reached: " + str(max))
 					else:
-						sys.exit("total reached: " + str(max))
+						log("lvl2noEn",title,"")
+						print("lvl2noEn: " + title)
 				else:
-					log("lvl2noEn",title,"")
-					print("lvl2noEn: " + title)
+					log("notOblast",title,"")
+					print ("notOblast: " + title)
 			else:
 				log("nolvl2",title,"")
 				print("nolvl2: " + title)
@@ -94,21 +99,24 @@ def updateItem(item,ic,il,title):
 	else:
 		log("noP131",title,"")
 		print("noP131: " + title)
-	if not "en" in il and "uk" in il:
-		try:
-			ukval = il["uk"]
-			ukroman = unidecode(ukval)
-			if total < max:
-				global total
-				total += 1
-				labelAs(ukroman)
-				log("updates",title,"label")
-				print("updated " + title + " label (#" + str(total) + ")")
-			else:
-				sys.exit("total reached: " + str(max))
-		except pywikibot.data.api.APIError:
-			log("dupeErrors",title,"")
-			print("dupeError: " + title)
+def labelItem(item,il,title):
+	def labelAs(a): # function for setting labels
+		item.editLabels(labels={'en': a}, summary=(u'set [en] label to "' + a + '" based on automated romanization of Ukrainian label'))
+	try:
+		ukval = il["uk"]
+		ukroman = unidecode(ukval)
+		ukroman_fixed = ukroman.replace("'","") # rm 's because Ukrainian Nat'l Syst. doesn't use them anymore
+		global total
+		if total < max:
+			total += 1
+			labelAs(ukroman_fixed)
+			log("updates",title,"label")
+			print("updated " + title + " label (#" + str(total) + ")")
+		else:
+			sys.exit("total reached: " + str(max))
+	except pywikibot.exceptions.OtherPageSaveError:
+		log("dupeErrors",title,"")
+		print("dupeError: " + title)
 
 # The framework of the script
 
@@ -117,17 +125,6 @@ def updateItem(item,ic,il,title):
 # would be useful for adapting script to other tasks
 blcont = "&"
 while blcont:
-	token = urlopen(u"https://www.wikidata.org/w/api.php?action=query&meta=tokens&format=json&type=login")
-	token_read = token.read()
-	token_str = str(token_read)
-	token_replace = token_str.replace("'",'"')
-	token_sr = token_replace.strip('b"').replace('}"','}')
-	token_j = json.loads(token_sr)
-	token_j2 = token_j["query"]["tokens"]["logintoken"]
-	login_url = u"https://www.wikidata.org/w/api.php?&action=clientlogin&username=AmpersandBot&password=hunter2&assert=bot&loginreturnurl=http://tomkel.ly&logintoken="
-	def login():
-		urlopen(login_url + token_j2)
-	login()
 	API = urlopen(u"https://www.wikidata.org/w/api.php?action=query&list=backlinks&bltitle=Q21672098&bllimit=5000&indexpageids=&format=json" + blcont).read()
 	API_decode = API.decode(encoding="utf-8", errors="strict")
 	API_JSON = json.loads(API_decode)
