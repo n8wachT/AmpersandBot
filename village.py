@@ -45,7 +45,7 @@ def village():
 				print("no P31 value: " + title)
 			if p31val == "[[wikidata:Q532]]": # is it a village?
 				if id.get("en"): # is there an English-language description?
-					if re.match("^village *(in|of)* *[a-z]*$",id.get("en"),re.I): # is the description basic?
+					if re.match("^village *(in|of)* *(Antigua (&|and) Barbuda|Bosnia (& |and )?Herzegovina|Central African Republic|(the|la )République centrafricaine|Republic of (the )?Congo|Democratic Republic of (the )?Congo|Costa Rica|(the )?Czech Republic|(the )?Dominican Republic|East Timor|Timor Leste|El Salvador|Equatorial Guinea|Guinea Bissau|Ivory Coast|C[oô]te d'?Ivoire|(the )?Republic of Ireland|North Korea|South Korea|(the )?Marshall Islands|Papua New Guinea|(the )?Russian Federation|(St\.?|Saint) Kitts( (&|and) Nevis)?|(St\.?|Saint) Lucia|(St\.?|Saint) Vincent ((and|&) the Grenadines)?|San Marino|S[aã]o Tom[eé]( (and|&) Pr[ií]ncipe)?|Saudi Arabia|Sierra Leone|Solomon Islands|South Africa|South Sudan|Sri Lanka|Trinidad (and|&)Tobago|United Arab Emirates|United Kingdom|United States( of America)?|Vatican( City)?|[a-z])*$",id.get("en"),re.I): # is the description basic?
 						defineItem(item,ic,il,title)
 					else:
 						print(title + " already properly described") # marker in cmd line for no description update
