@@ -15,7 +15,7 @@ from unidecode import unidecode
 import sys
 import re
 
-max = 20
+max = 50
 total = 0
 	
 def log(a,b,c):
@@ -45,23 +45,23 @@ def village():
 				print("no P31 value: " + title)
 			if p31val == "[[wikidata:Q532]]": # is it a village?
 				if id.get("en"): # is there an English-language description?
-					if re.match("^village *(in|of)* *(Antigua (&|and) Barbuda|Bosnia (& |and )?Herzegovina|Central African Republic|(the|la )République centrafricaine|Republic of (the )?Congo|Democratic Republic of (the )?Congo|Costa Rica|(the )?Czech Republic|(the )?Dominican Republic|East Timor|Timor Leste|El Salvador|Equatorial Guinea|Guinea Bissau|Ivory Coast|C[oô]te d'?Ivoire|(the )?Republic of Ireland|North Korea|South Korea|(the )?Marshall Islands|Papua New Guinea|(the )?Russian Federation|(St\.?|Saint) Kitts( (&|and) Nevis)?|(St\.?|Saint) Lucia|(St\.?|Saint) Vincent ((and|&) the Grenadines)?|San Marino|S[aã]o Tom[eé]( (and|&) Pr[ií]ncipe)?|Saudi Arabia|Sierra Leone|Solomon Islands|South Africa|South Sudan|Sri Lanka|Trinidad (and|&)Tobago|United Arab Emirates|United Kingdom|United States( of America)?|Vatican( City)?|[a-z])*$",id.get("en"),re.I): # is the description basic?
-						defineItem(item,ic,il,title)
+					if re.match("^village *(in|of)* *(Antigua (&|and) Barbuda|Bosnia (& |and )?Herzegovina|Central African Republic|(the|la )République centrafricaine|Republic of (the )?Congo|Democratic Republic of (the )?Congo|Costa Rica|(the )?Czech Republic|(the )?Dominican Republic|East Timor|Timor Leste|El Salvador|Equatorial Guinea|Guinea Bissau|Ivory Coast|C[oô]te d'?Ivoire|(the )?Republic of Ireland|North Korea|South Korea|(the )?Marshall Islands|Papua New Guinea|(Former Yugoslav )?Republic of Macedonia|(the )?Russian Federation|(St\.?|Saint) Kitts( (&|and) Nevis)?|(St\.?|Saint) Lucia|(St\.?|Saint) Vincent ((and|&) the Grenadines)?|San Marino|S[aã]o Tom[eé]( (and|&) Pr[ií]ncipe)?|Saudi Arabia|Sierra Leone|Solomon Islands|South Africa|South Sudan|Sri Lanka|Trinidad (and|&)Tobago|United Arab Emirates|United Kingdom|United States( of America)?|Vatican( City)?|[a-z])*$",id.get("en"),re.I): # is the description basic?
+						describeItem(item,ic,il,title)
 					else:
 						print(title + " already properly described") # marker in cmd line for no description update
 				else:
-					defineItem(item,ic,il,title)
+					describeItem(item,ic,il,title)
 			else:
 				log("P31errors",title,"")
 				print("P31 error (not a village): " + title)
 
-def defineItem(item,ic,il,title):
-	def defineAs(a): # function for setting descriptions
+def describeItem(item,ic,il,title):
+	def describeAs(a): # function for setting descriptions
 		global total
 		if total < max:
 			total += 1
 			try:
-				item.editDescriptions(descriptions={'en': a}, summary=(u'[TRIAL RUN: block if malfunctioning] Added English description "' + a + '", using P31 and P131 values'))
+				item.editDescriptions(descriptions={'en': a}, summary=(u'([[WD:Requests_for_permissions/Bot/AmpersandBot_2|TRIAL RUN]]: block if malfunctioning) Added English description "' + a + '", using P31 and P131 values'))
 				log("updates",title,"description") # for consultation after run
 				print("updated " + title + " description (#" + str(total) + ")") # marker in cmd line for updated items	
 			except pywikibot.exceptions.OtherPageSaveError:
@@ -75,13 +75,13 @@ def defineItem(item,ic,il,title):
 		parent_P31 = parent_c["P31"]
 		if "en" in parent.get()["labels"]: # does the parent entity have an English label?
 			parent_label = parent.get()["labels"]["en"] # the English label of the parent entity
-			global defined
-			defined = "no"
+			global described
+			described = "no"
 			for value in parent_P31:
 				if str(value.getTarget()) == "[[wikidata:Q3624078]]":
-					defineAs("village in " + parent_label)
-					defined = "yes"
-			if not defined == "yes" and "P131" in parent_c: # does *that* entity have a parent entity listed?
+					describeAs("village in " + parent_label)
+					described = "yes"
+			if not described == "yes" and "P131" in parent_c: # does *that* entity have a parent entity listed?
 				gparent = parent_c["P131"][0].getTarget() # the grandparent entity
 				gparent_c = gparent.get()["claims"]
 				gparent_P31 = gparent_c["P31"]
@@ -89,9 +89,9 @@ def defineItem(item,ic,il,title):
 					gparent_label = gparent.get()["labels"]["en"]
 					for value in gparent_P31:
 						if str(value.getTarget()) == "[[wikidata:Q3624078]]":
-							defineAs("village in " + parent_label + ", " + gparent_label)
-							defined = "yes"
-					if not defined == "yes" and "P131" in gparent_c:
+							describeAs("village in " + parent_label + ", " + gparent_label)
+							described = "yes"
+					if not described == "yes" and "P131" in gparent_c:
 						g2parent = gparent_c["P131"][0].getTarget() # the great-grandparent entity
 						g2parent_c = g2parent.get()["claims"]
 						g2parent_P31 = g2parent_c["P31"]
@@ -99,9 +99,9 @@ def defineItem(item,ic,il,title):
 							g2parent_label = g2parent.get()["labels"]["en"]
 							for value in g2parent_P31:
 								if str(value.getTarget()) == "[[wikidata:Q3624078]]":
-									defineAs("village in " + parent_label + ", " + gparent_label + ", " + g2parent_label)
-									defined = "yes"
-							if not defined == "yes" and "P131" in g2parent_c: 
+									describeAs("village in " + parent_label + ", " + gparent_label + ", " + g2parent_label)
+									described = "yes"
+							if not described == "yes" and "P131" in g2parent_c: 
 								g3parent = g2parent_c["P131"][0].getTarget() # the great-great-grandparent entity
 								g3parent_c = g3parent.get()["claims"]
 								g3parent_P31 = g3parent_c["P31"]
@@ -109,9 +109,9 @@ def defineItem(item,ic,il,title):
 									g3parent_label = g3parent.get()["labels"]["en"]
 									for value in g3parent_P31:
 										if str(value.getTarget()) == "[[wikidata:Q3624078]]":
-											defineAs("village in " + gparent_label + ", " + g2parent_label + ", " + g3parent_label)
-											defined = "yes"
-									if not defined == "yes":
+											describeAs("village in " + gparent_label + ", " + g2parent_label + ", " + g3parent_label)
+											described = "yes"
+									if not described == "yes":
 										log("moreThan4Levels",title,"")
 										print("Country >4 levels deep: " + title)
 								else:
