@@ -113,8 +113,24 @@ def describeItem(item,ic,il,title):
 													if str(value.getTarget()) == "[[wikidata:Q3624078]]":
 														describeAs("village in " + gparent_label + ", " + g2parent_label + ", " + g3parent_label,"at great-great-grandparent level")
 												if not described == "yes":
-													log("moreThan4Levels",title,"")
-													print("Country >4 levels deep: " + title)
+													if "P131" in g3parent_c:
+														g4parent = g3parent_c["P131"][0].getTarget() # the great-great-grandparent entity
+														g4parent_c = g4parent.get()["claims"]
+														g4parent_P31 = g4parent_c["P31"]
+														if "en" in g4parent.get()["labels"]:
+															g4parent_label = g4parent.get()["labels"]["en"]
+															for value in g4parent_P31:
+																if str(value.getTarget()) == "[[wikidata:Q3624078]]":
+																	describeAs("village in " + g2parent_label + ", " + g3parent_label + ", " + g4parent_label,"at thrice-great-grandparent level")
+															if not described == "yes":
+																log("moreThan5Levels",title,"")
+																print("Country >5 levels deep: " + title)
+														else:
+															log("noEnglish",title,"thrice-great-grandparent entity")
+															print("No English label for " + title + "'s thrice-great-grandparent entity")
+													else:
+														log("endsEarly",title,"ends at thrice-great-grandparent entity")
+														print("No county reachable from thrice-great-grandparent entity: " + title)
 											else:
 												log("noEnglish", title, "great-great-grandparent entity")
 												print("No English label for " + title + "'s great-great-grandparent entity")
