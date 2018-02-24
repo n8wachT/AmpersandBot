@@ -82,7 +82,7 @@ def describeItem(item,ic,il,title):
 			for value in parent_P31:
 				if str(value.getTarget()) == "[[wikidata:Q3624078]]":
 					describeAs("village in " + parent_label,"at parent level")
-			if not described == "yes":
+			if described == "no":
 				if "P131" in parent_c: # does *that* entity have a parent entity listed?
 					gparent = parent_c["P131"][0].getTarget() # the grandparent entity
 					gparent_c = gparent.get()["claims"]
@@ -91,8 +91,13 @@ def describeItem(item,ic,il,title):
 						gparent_label = gparent.get()["labels"]["en"]
 						for value in gparent_P31:
 							if str(value.getTarget()) == "[[wikidata:Q3624078]]":
-								describeAs("village in " + parent_label + ", " + gparent_label,"at grandparent level")
-						if not described == "yes":
+								if parent_label in gparent_label or gparent_label in parent_label:
+									log("wordMatch",title,"at grandparent level")
+									print("Entities share strings at grandparent level: " + title)
+									described = "skipped"
+								else:
+									describeAs("village in " + parent_label + ", " + gparent_label,"at grandparent level")
+						if described == "no":
 							if "P131" in gparent_c:
 								g2parent = gparent_c["P131"][0].getTarget() # the great-grandparent entity
 								g2parent_c = g2parent.get()["claims"]
@@ -101,8 +106,13 @@ def describeItem(item,ic,il,title):
 									g2parent_label = g2parent.get()["labels"]["en"]
 									for value in g2parent_P31:
 										if str(value.getTarget()) == "[[wikidata:Q3624078]]":
-											describeAs("village in " + parent_label + ", " + gparent_label + ", " + g2parent_label,"at grandparent level")
-									if not described == "yes":
+											if parent_label in gparent_label or parent_label in g2parent_label or gparent_label in parent_label or gparent_label in g2parent_label or g2parent_label in parent_label or g2parent_label in gparent_label:
+												log("wordMatch",title,"at great-grandparent level")
+												print("Entities share strings at great-grandparent level: " + title)
+												described = "skipped"
+											else:
+												describeAs("village in " + parent_label + ", " + gparent_label + ", " + g2parent_label,"at grandparent level")
+									if described == "no":
 										if "P131" in g2parent_c:
 											g3parent = g2parent_c["P131"][0].getTarget() # the great-great-grandparent entity
 											g3parent_c = g3parent.get()["claims"]
@@ -111,8 +121,13 @@ def describeItem(item,ic,il,title):
 												g3parent_label = g3parent.get()["labels"]["en"]
 												for value in g3parent_P31:
 													if str(value.getTarget()) == "[[wikidata:Q3624078]]":
-														describeAs("village in " + gparent_label + ", " + g2parent_label + ", " + g3parent_label,"at great-great-grandparent level")
-												if not described == "yes":
+														if gparent_label in g2parent_label or gparent_label in g3parent_label or g2parent_label in gparent_label or g2parent_label in g3parent_label or g3parent_label in gparent_label or g3parent_label in g2parent_label:
+															log("wordMatch",title,"at great-great-grandparent level")
+															print("Entities share strings at great-great-grandparent level: " + title)
+															described = "skipped"
+														else:
+															describeAs("village in " + gparent_label + ", " + g2parent_label + ", " + g3parent_label,"at great-great-grandparent level")
+												if described == "no":
 													if "P131" in g3parent_c:
 														g4parent = g3parent_c["P131"][0].getTarget() # the great-great-grandparent entity
 														g4parent_c = g4parent.get()["claims"]
@@ -121,8 +136,13 @@ def describeItem(item,ic,il,title):
 															g4parent_label = g4parent.get()["labels"]["en"]
 															for value in g4parent_P31:
 																if str(value.getTarget()) == "[[wikidata:Q3624078]]":
-																	describeAs("village in " + g2parent_label + ", " + g3parent_label + ", " + g4parent_label,"at thrice-great-grandparent level")
-															if not described == "yes":
+																	if g2parent_label in g3parent_label or g2parent_label in g4parent_label or g3parent_label in g2parent_label or g3parent_label in g4parent_label or g4parent_label in g2parent_label or g4parent_label in g3parent_label:
+																		log("wordMatch",title,"at thrice-great-grandparent level")
+																		print("Entities share strings at thrice-great-grandparent level: " + title)
+																		described = "skipped"
+																	else:
+																		describeAs("village in " + g2parent_label + ", " + g3parent_label + ", " + g4parent_label,"at thrice-great-grandparent level")
+															if described == "no":
 																log("moreThan5Levels",title,"")
 																print("Country >5 levels deep: " + title)
 														else:
