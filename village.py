@@ -1,6 +1,7 @@
 # -*- coding: utf-8  -*-
 ########################
 ## AmpersandBot  code ##
+##   VillageBot  v2   ##
 ##   by T. H. Kelly   ##
 ## aka  PinkAmpersand ##
 ########################
@@ -14,15 +15,17 @@ import unidecode
 from unidecode import unidecode
 import sys
 import re
+import itertools
+import datetime
 
-max = 10
+max = 5
 total = 0
 	
 def log(a,b,c):
-	with open("C:\\Users\\Tom\\Desktop\\python\\AmpersandBot\\VillageBot\\" + a + ".txt", "a") as file:
+	with open("C:\\Users\\Tom\\Desktop\\python\\AmpersandBot\\VillageBot\\" + a + ".txt", mode="a") as file:
 		file.write("[[" + b + "]]" + c + "\n")
 	
-# the function at the script's core
+# the function at the script's core:
 	
 def village():
 	# parse layers of JSON to get to the links themselves
@@ -33,10 +36,13 @@ def village():
 		title = link["title"]
 		site = pywikibot.Site("wikidata", "wikidata")
 		repo = site.data_repository()
+		page = pywikibot.Page(repo,title)
 		item = pywikibot.ItemPage(repo, title)
-		ic = item.get()["claims"]
-		id = item.get()["descriptions"]
-		il = item.get()["labels"]
+		item.get()
+		ic = item.claims
+		id = item.descriptions
+		il = item.labels
+		ia = item.aliases
 		if "P31" in ic:
 			try:
 				p31val = str(ic["P31"][0].getTarget()) # get value of "instance of"
@@ -44,17 +50,18 @@ def village():
 				log("noP31",title,"")
 				print("no P31 value: " + title)
 			if p31val == "[[wikidata:Q532]]": # is it a village?
+				labelItem(page,title,item,il,ia)
 				if id.get("en"): # is there an English-language description?
 					if re.match("^village *(in|of)* *(Antigua (&|and) Barbuda|The Bahamas|Bosnia (& |and )?Herzegovina|(Cape|Cabo) Verde|Central African Republic|(the |la )?République centrafricaine|(the )?Republic of (the )?Congo|(the )?Democratic Republic of (the )?Congo|Costa Rica|(the )?Czech Republic|(the )?Dominican Republic|East Timor|Timor Leste|El Salvador|Equatorial Guinea|The Gambia|Guinea Bissau|Ivory Coast|C[oô]te d'?Ivoire|(Former Yugoslav )?Republic of Macedonia|(the )?Republic of Ireland|North Korea|South Korea|(the )?Marshall Islands|The Netherlands|New Zealand|Papua New Guinea|The Philippines|(the )?Russian Federation|(St\.?|Saint) Kitts( (&|and) Nevis)?|(St\.?|Saint) Lucia|(St\.?|Saint) Vincent ((and|&) the Grenadines)?|San Marino|S[aã]o Tom[eé]( (and|&) Pr[ií]ncipe)?|Saudi Arabia|Sierra Leone|(the )?Solomon Islands|South Africa|South Sudan|Sri Lanka|Trinidad (and|&) Tobago|(the )?United Arab Emirates|(the )?United Kingdom|(the )?United States( of America)?|(the )?Vatican( City)?|[a-z])*$",id.get("en"),re.I): # is the description basic?
 						describeItem(item,ic,il,title)
 					else:
-						print(title + " already properly described") # marker in cmd line for no description update
+						print(title + " description not changed") # marker in cmd line for no description update
 				else:
 					describeItem(item,ic,il,title)
 			else:
 				log("P31errors",title,"")
 				print("P31 error (not a village): " + title)
-
+				
 def describeItem(item,ic,il,title):
 	def describeAs(a,b): # function for setting descriptions
 		global total
@@ -67,7 +74,7 @@ def describeItem(item,ic,il,title):
 				global described
 				described = "yes"
 			except pywikibot.exceptions.OtherPageSaveError:
-				log("dupeErrors",title,"")
+				log("dupeErrors",title,"while describing")
 				print("dupeError: " + title)
 		else:
 			sys.exit("max number of edits reached")
@@ -175,8 +182,76 @@ def describeItem(item,ic,il,title):
 	else:
 		log("noP131",title,"")
 		print("No parent entity: " + title)
+		
+def labelItem(page,title,item,il,ia):
+	def setLabelAlias(a,b,c,d):
+		global total
+		if total < max:
+			total += 1
+			data = {"labels": {a: b}, "aliases": {a: [c]}}
+			item.editEntity(data,summary=d)
+			log("updates",title,"label and aliases [" + a + "]")
+			print("Updated " + title + " [" + a + "] label and aliases (rm dab) (#" + str(total) + ")")
+		else:
+			sys.exit("max number of edits reached")
+	def setData(a,b):
+		global total
+		if total < max:
+			item.editEntity(a,summary=b)
+			timestamp = str(page.editTime())
+			now = str(datetime.datetime.utcnow()).replace(" ","T")
+			print("timestamp: " + timestamp)
+			print("timestamp16: " +timestamp[0:16])
+			print("now: " + now)
+			print("now16: " + now[0:16])
+			# did the edit occur within the last calendar minute? ugly hack. TODO: find way that doesn't lead to false negatives near the :00 mark
+			if timestamp[0:16] == now[0:16]:
+				total += 1
+				log("updates",title,"labels and aliases")
+				print("Updated " + title + " labels and aliases (unanimity) (#" + str(total) + ")")
+			else:
+				print(title + " labels and aliases not changed")
+		else:
+			sys.exit("max number of edits reached")
+	try:
+		for lang in il:
+			il_lang = il.get(lang)
+			if re.search(",| \(", il_lang):
+				ilr = re.sub("(,| \().*","",il_lang)
+				setLabelAlias(lang,ilr,il_lang,u"([[WD:Requests_for_permissions/Bot/AmpersandBot_2|TRIAL RUN]]: block if malfunctioning) Removed disambiguation from [" + lang + "] label & set old label as alias")
+		latlangs = ("en","to","tet","tum","tn","tpi","wa","wo","war","yo","ts","st","io","bi","kbp","prg","kri","ie","kab","gn","ia","jam","hil","kr","lij","pam","lad","ltg","ln","mh","jbo","ku","mi","pih","olo","nov","tw","vo","ang","din","ha","atj","pdc","pfl","nb","nn","fo","kw","kl","nds","stq","fy","ik","ace","aa","ak","frr","rup","ast","bar","ext","ee","szl","ksh","ve","vec","vep","vro","eo","fr","de","vot","cho","ceb","co","bjn","map-bms","bm","ch","chy","ny","cbk-zam","fj","hz","fur","ff","gag","ht","kaa","rw","ig","rn","ki","ho","csb","liv","kg","krj","arn","lmo","nap","pap","om","pag","nso","se","sg","sat","scn","sc","srn","jv","sn","sm","ss","tl","li","gsw","sgs","pcd","nds-nl","mus","eml","de-at","vmf","zea","aln","lfn","roa-tara","su","tay","jut","pdt","gor","sr-el","simple","crh-latn","tt-latn","is","la","fi","ay","qu","ca","nl","sw","frc","gcr","ro","mg","en-ca","en-gb","eu","cs","sv","da","id","sq","lb","sk","sl","et","lv","lt","ga","mt","an","ms","tk","az","gl","cy","gd","zu","br","gv","rm","rmy","xh","za","hsb","so","dsb","sma","nah","na","nv","oc","af","sco","frp","pms","nrm","mwl","min","ruq") # list of all WD-supported langs using Latin script
+		il_list = []
+		for lang in latlangs:
+			if lang in il:
+				il_list.append(il[lang])
+		split = "no"
+		if 1 in il_list:
+			for a, b in itertools.combinations(il_list, 2):
+				if not a == b:
+					split = "yes"
+		if split == "no":
+			newLabel = il_list[0]
+			ld1 = '{"labels": {'
+			for lang in latlangs:
+				if not lang in il:
+					ld1 = ld1 + '"' + lang + '": "' + newLabel + '", '
+			ld2 = ld1.rstrip(", ") + "}"
+			if not unidecode(newLabel) == newLabel:
+				ld3 = ld2 + ', "aliases": {'
+				for lang in latlangs:
+					ld3 = ld3 + '"' + lang + '": ["' + unidecode(newLabel) + '"], '
+				ld4 = ld3.rstrip(", ") + "}}"
+			else:
+				ld4 = ld2 + "}"
+			setData(json.loads(ld4),u"([[WD:Requests_for_permissions/Bot/AmpersandBot_2|TRIAL RUN]]: block if malfunctioning) Set all Latin-script languages' labels to match ones already used")
+		elif split == "yes":
+			log(LatSplit,title,"")
+			print(title + ": Latin-script labels not unanimous")
+	except pywikibot.exceptions.OtherPageSaveError:
+		log("APIErrors",title,"while labeling/aliasing")
+		print("APIError: " + title)
 
-# The framework of the script
+# The framework of the script:
 
 blcont = "&"
 while blcont:
