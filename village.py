@@ -244,7 +244,7 @@ def labelItem(page,title,item,il,ia):
 			ldb2 = ldb1.rstrip(", ") + "}"
 			if not unidecode(newLabel) == newLabel:
 				ias = str(ia).strip("{").rstrip("}").replace("'",'"') # old aliases so they don't get deleted
-				ldb3 = ldb2 + ', " aliases' + '": {' + ias + ", " # another dict, but this time add aliases too
+				ldb3 = ldb2 + ', "aliases' + '": {' + ias + ", " # another dict, but this time add aliases too
 				for lang in latlangs:
 					ldb3 = ldb3 + '"' + lang + '": ["' + unidecode(newLabel) + '"], '
 				ldb4 = ldb3.rstrip(", ") + "}}"
