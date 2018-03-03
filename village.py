@@ -18,7 +18,7 @@ import re
 import itertools
 import datetime
 
-max = 5
+max = 70
 total = 0
 	
 def log(a,b,c):
@@ -70,12 +70,12 @@ def describeItem(item,ic,il,title):
 				total += 1
 				item.editDescriptions(descriptions={'en': a}, summary=(u'([[WD:Requests_for_permissions/Bot/AmpersandBot_2|TRIAL RUN]]: block if malfunctioning) Added English description "' + a + '", using P31 and P131 values'))
 				log("updates",title,"description") # for consultation after run
-				print("updated " + title + " description " + b + " (#" + str(total) + ")") # marker in cmd line for updated items	
+				print("updated " + title + " description " + b + ": " + a + "(#" + str(total) + ")") # marker in cmd line for updated items	
 				global described
 				described = "yes"
 			except pywikibot.exceptions.OtherPageSaveError:
-				log("dupeErrors",title,"while describing")
-				print("dupeError: " + title)
+				log("APIErrors",title,"while describing")
+				print("APIError: " + title)
 		else:
 			sys.exit("max number of edits reached")
 	if "P131" in ic: # does the item have a parent entity listed?
@@ -184,69 +184,76 @@ def describeItem(item,ic,il,title):
 		print("No parent entity: " + title)
 		
 def labelItem(page,title,item,il,ia):
-	def setLabelAlias(a,b,c,d):
+	def setData(a,b,c,d):
 		global total
 		if total < max:
-			total += 1
-			data = {"labels": {a: b}, "aliases": {a: [c]}}
-			item.editEntity(data,summary=d)
-			log("updates",title,"label and aliases [" + a + "]")
-			print("Updated " + title + " [" + a + "] label and aliases (rm dab) (#" + str(total) + ")")
-		else:
-			sys.exit("max number of edits reached")
-	def setData(a,b):
-		global total
-		if total < max:
+			old_ec = page.revision_count()
 			item.editEntity(a,summary=b)
-			timestamp = str(page.editTime())
-			now = str(datetime.datetime.utcnow()).replace(" ","T")
-			print("timestamp: " + timestamp)
-			print("timestamp16: " +timestamp[0:16])
-			print("now: " + now)
-			print("now16: " + now[0:16])
-			# did the edit occur within the last calendar minute? ugly hack. TODO: find way that doesn't lead to false negatives near the :00 mark
-			if timestamp[0:16] == now[0:16]:
+			page.purge()
+			new_ec = page.revision_count()
+			if not new_ec == old_ec:
 				total += 1
-				log("updates",title,"labels and aliases")
-				print("Updated " + title + " labels and aliases (unanimity) (#" + str(total) + ")")
+				if c == "dab":
+					print("Updated " + title + " labels and aliases (dab): " + d + " (#" + str(total) + ")")
+					log("updates",title,"labels and aliases (dab)")
+				elif c == "unanimity":
+					log("updates",title,"labels and aliases (unanimity)")
+					print("Updated " + title + " labels and aliases (unanimity): " + d + " (#" + str(total) + ")")
 			else:
-				print(title + " labels and aliases not changed")
+				if c == "dab":
+					print(title + " labels and aliases not changed (dab)")
+				elif c == "unanimity":
+					print(title + " labels and aliases not changed (unanimity)")
 		else:
 			sys.exit("max number of edits reached")
 	try:
+		lda1 = '{"labels": {'
+		lda2 = '"aliases": {'
 		for lang in il:
-			il_lang = il.get(lang)
-			if re.search(",| \(", il_lang):
-				ilr = re.sub("(,| \().*","",il_lang)
-				setLabelAlias(lang,ilr,il_lang,u"([[WD:Requests_for_permissions/Bot/AmpersandBot_2|TRIAL RUN]]: block if malfunctioning) Removed disambiguation from [" + lang + "] label & set old label as alias")
+			if re.search(",| \(", il[lang]):
+				ilr = re.sub("(,| \().*","",il[lang])
+				lda1 = lda1 + '"' + lang + '": "' + ilr + '", '
+				lda2 = lda2 + '"' + lang + '": ["' + il[lang] + '", "' + unidecode(il[lang]) + '"], '
+		lda3 = lda1.rstrip(", ") + "}, " # create dict of lang values and labels
+		lda4 = lda2.rstrip(", ") + "}}" 
+		lda5 = lda3 + lda4
+		setData(json.loads(lda5),u"([[WD:Requests_for_permissions/Bot/AmpersandBot_2|TRIAL RUN]]: block if malfunctioning) Removed disambiguation from labels & set old labels as aliases","dab",lda3)
 		latlangs = ("en","to","tet","tum","tn","tpi","wa","wo","war","yo","ts","st","io","bi","kbp","prg","kri","ie","kab","gn","ia","jam","hil","kr","lij","pam","lad","ltg","ln","mh","jbo","ku","mi","pih","olo","nov","tw","vo","ang","din","ha","atj","pdc","pfl","nb","nn","fo","kw","kl","nds","stq","fy","ik","ace","aa","ak","frr","rup","ast","bar","ext","ee","szl","ksh","ve","vec","vep","vro","eo","fr","de","vot","cho","ceb","co","bjn","map-bms","bm","ch","chy","ny","cbk-zam","fj","hz","fur","ff","gag","ht","kaa","rw","ig","rn","ki","ho","csb","liv","kg","krj","arn","lmo","nap","pap","om","pag","nso","se","sg","sat","scn","sc","srn","jv","sn","sm","ss","tl","li","gsw","sgs","pcd","nds-nl","mus","eml","de-at","vmf","zea","aln","lfn","roa-tara","su","tay","jut","pdt","gor","sr-el","simple","crh-latn","tt-latn","is","la","fi","ay","qu","ca","nl","sw","frc","gcr","ro","mg","en-ca","en-gb","eu","cs","sv","da","id","sq","lb","sk","sl","et","lv","lt","ga","mt","an","ms","tk","az","gl","cy","gd","zu","br","gv","rm","rmy","xh","za","hsb","so","dsb","sma","nah","na","nv","oc","af","sco","frp","pms","nrm","mwl","min","ruq") # list of all WD-supported langs using Latin script
 		il_list = []
 		for lang in latlangs:
 			if lang in il:
 				il_list.append(il[lang])
 		split = "no"
-		if 1 in il_list:
-			for a, b in itertools.combinations(il_list, 2):
-				if not a == b:
-					split = "yes"
+		if len(il_list) > 1:
+			try:
+				a = 1
+				while a:
+					if il_list[0] == il_list[a]:
+						a += 1
+					else:
+						split = "yes"
+						break
+			except IndexError:
+				pass
 		if split == "no":
 			newLabel = il_list[0]
-			ld1 = '{"labels": {'
+			ldb1 = '{"labels": {'
 			for lang in latlangs:
 				if not lang in il:
-					ld1 = ld1 + '"' + lang + '": "' + newLabel + '", '
-			ld2 = ld1.rstrip(", ") + "}"
+					ldb1 = ldb1 + '"' + lang + '": "' + newLabel + '", '
+			ldb2 = ldb1.rstrip(", ") + "}"
 			if not unidecode(newLabel) == newLabel:
-				ld3 = ld2 + ', "aliases": {'
+				ias = str(ia).strip("{").rstrip("}").replace("'",'"') # old aliases so they don't get deleted
+				ldb3 = ldb2 + ', " aliases' + '": {' + ias + ", " # another dict, but this time add aliases too
 				for lang in latlangs:
-					ld3 = ld3 + '"' + lang + '": ["' + unidecode(newLabel) + '"], '
-				ld4 = ld3.rstrip(", ") + "}}"
+					ldb3 = ldb3 + '"' + lang + '": ["' + unidecode(newLabel) + '"], '
+				ldb4 = ldb3.rstrip(", ") + "}}"
 			else:
-				ld4 = ld2 + "}"
-			setData(json.loads(ld4),u"([[WD:Requests_for_permissions/Bot/AmpersandBot_2|TRIAL RUN]]: block if malfunctioning) Set all Latin-script languages' labels to match ones already used")
+				ldb4 = ldb2 + "}"
+			setData(json.loads(ldb4),u"([[WD:Requests_for_permissions/Bot/AmpersandBot_2|TRIAL RUN]]: block if malfunctioning) Set all Latin-script languages' labels to match ones already used","unanimity",newLabel)
 		elif split == "yes":
-			log(LatSplit,title,"")
-			print(title + ": Latin-script labels not unanimous")
+			log("LatSplit",title,"")
+			print(title + " Latin-script labels not unanimous")
 	except pywikibot.exceptions.OtherPageSaveError:
 		log("APIErrors",title,"while labeling/aliasing")
 		print("APIError: " + title)
