@@ -59,15 +59,13 @@ def getPronunciation():
 		def tryKeyValue(template,key,param):
 			try:
 				value = string.split("{{" + template + "|")[1].split("}}")[0].split("|")[param - 1] # get a specific parameter
-				if key == "ipa-pron":
-					pronDict["accents"][accent]["ipa-pron"] = value
-				elif key == "audio":
+				if key == "audio":
 					# get lang code of audio
-					lang = string.split("{{" + template + "|")[1].split("}}")[0].replace("audio (","").replace(")","")
+					lang = string.split("{{" + template + "|")[1].split("}}")[0].split("|")[param].replace("audio (","").replace(")","")
 					pronDict["audio"][lang] = value
 				else:
 					pronDict[key] = value
-			except (IndexError, KeyError):
+			except IndexError:
 				pass
 				
 		pronSplit = pronunciation.lower().split("* ")
@@ -76,14 +74,19 @@ def getPronunciation():
 		
 		for string in pronSplit:
 			try:
-				accent = string.split("{{a|")[1].split("}}")[0] # get the text between "{{a|" and "}}"
+				accents = string.split("{{a|")[1].split("}}")[0].split("|")
 				enPron = string.split("{{enpr|")[1].split("}}")[0]
-				pronDict["accents"][accent] = {}
-				pronDict["accents"][accent]["en-pron"] = enPron
+				for accent in accents:
+					pronDict["accents"][accent] = {}
+					pronDict["accents"][accent]["en-pron"] = enPron
+					try:
+						IPAPron = string.split("{{ipa|")[1].split("}}")[0].split("|")[0]
+						pronDict["accents"][accent]["ipa-pron"] = IPAPron
+					except(IndexError,KeyError):
+						pass
 			except IndexError:
 				pass
 				
-			tryKeyValue("ipa","ipa-pron",1)
 			tryKeyValue("audio","audio",1)
 			tryKeyValue("rhymes","rhymes",1)
 			tryKeyValue("homophones","homophones",2)
