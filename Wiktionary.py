@@ -10,7 +10,7 @@ import pywikibot
 import re
 
 site = pywikibot.Site("en","wiktionary")
-page = pywikibot.Page(site,u"hard")
+page = pywikibot.Page(site,u"welcome")
 text = page.text
 
 def getEtymology():
@@ -41,7 +41,7 @@ def getEtymology():
 	if "===Etymology===" in English:
 		EnSplit = English.split("===Etymology===")
 		etymology = re.split(r"\n={3}[^=]*={3}\n",EnSplit[1])[0] # all of the text between ===Etymology=== and the next section
-		if not "\n\n" in etymology:
+		if not "\n\n" in etymology: # if it's more than one graf, there's probably nuances this script will miss
 			etymDict = {} # create dict of main forms of etymology
 			if parseEtymology("inh") is not None:
 				etymDict["inherited"] = parseEtymology("inh")
@@ -61,6 +61,10 @@ def getPronunciation():
 				value = string.split("{{" + template + "|")[1].split("}}")[0].split("|")[param - 1] # get a specific parameter
 				if key == "ipa-pron":
 					pronDict["accents"][accent]["ipa-pron"] = value
+				elif key == "audio":
+					# get lang code of audio
+					lang = string.split("{{" + template + "|")[1].split("}}")[0].replace("audio (","").replace(")","")
+					pronDict["audio"][lang] = value
 				else:
 					pronDict[key] = value
 			except (IndexError, KeyError):
@@ -68,6 +72,7 @@ def getPronunciation():
 				
 		pronSplit = pronunciation.lower().split("* ")
 		pronDict["accents"] = {}
+		pronDict["audio"] = {}
 		
 		for string in pronSplit:
 			try:
@@ -95,8 +100,10 @@ if "==English==" in text:
 	English = re.split(r"\n={2}[^=]*={2}\n",textSplit[1])[0]
 	
 	masterDict = {}
-	masterDict["etymology"] = getEtymology()
-	masterDict["pronunciation"] = getPronunciation()
+	if getEtymology() is not None:
+		masterDict["etymology"] = getEtymology()
+	if getPronunciation() is not None:
+		masterDict["pronunciation"] = getPronunciation()
 	print(masterDict)
 else:
 	print("No English section")
