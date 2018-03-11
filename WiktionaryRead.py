@@ -10,7 +10,7 @@ import pywikibot
 import re
 
 site = pywikibot.Site("en","wiktionary")
-title = u"rich"
+title = u"hard"
 page = pywikibot.Page(site,title)
 text = page.text.lower()
 
@@ -29,14 +29,14 @@ def getEtymology():
 			if template == "cog":
 				strDict[strSplit[0]] = strSplit[1] # other lang as key, word in other lang as value
 			else:
-				strDict["level " + str(t)] = {} # create placeholder sub-dict
-				strDict["level " + str(t)][strSplit[1]] = strSplit[2] # old lang as key, word in old lang as value, w/i level-based keys
+				strDict["level-" + str(t)] = {} # create placeholder sub-dict
+				strDict["level-" + str(t)][strSplit[1]] = strSplit[2] # old lang as key, word in old lang as value, w/i level-based keys
 			t += 1
 			
 		if template == "cog":
 			return strDict
 		elif "level 1" in strDict:
-			return(strDict["level 1"]) # only the 1st level really seems useful for Wikidata, but parsing all levels may be useful for other purposes
+			return(strDict["level-1"]) # only the 1st level really seems useful for Wikidata, but parsing all levels may be useful for other purposes
 		
 	if "===etymology===" in English:
 		EnSplit = English.split("===etymology===")
@@ -48,7 +48,7 @@ def getEtymology():
 			if parseEtymology("bor") is not None:
 				etymDict["borrowed"] = parseEtymology("bor")
 			if parseEtymology("der") is not None:
-				etymDict["derived"] = parseEtymology("der")
+				etymDict["derived terms"] = parseEtymology("der")
 			# etymDict["cognate"] = parseEtymology("cog") # has both false positives and false negatives
 			return etymDict
 		else:
@@ -64,7 +64,10 @@ def getPronunciation():
 			else:
 				if key == "audio":
 					# get lang code of audio
-					lang = string.split("{{" + template + "|")[1].split("}}")[0].split("|")[param].replace("audio (","").replace(")","")
+					if re.search(r"audio \(.*\)",string):
+						lang = string.split("{{" + template + "|")[1].split("}}")[0].split("|")[param].replace("audio (","").replace(")","")
+					else:
+						lang = "unknown/all"
 					pronDict["audio"][lang] = value
 				else:
 					pronDict[key] = value
@@ -145,57 +148,83 @@ def getAltForms():
 		if AFList:
 			return AFList
 
-def getDerived(form):
-	def parseDerived():
-		derivSplit = derivs.split("|")
-		for string in derivSplit:
-			if not "{{der" in string and not "=" in string:
-				if "|" in string:
-					strSplit = string.split("|")
+def getLinkedTerms(type,abbr,form):
+	def parseLinkedTerms():
+		def appendTerm(string):
+			strClean1 = re.sub(r" *\[+","",string,flags=re.S)
+			strClean2 = re.sub(r"[\}\]\<\n].*","",strClean1,flags=re.S)
+			if strClean2 and not ("{{" + abbr or "lang=" or "title=" or "{{checksense") in strClean2: # clean up params
+				if "|" in strClean2:
+					strSplit2 = strClean2.split("|")
 					try:
-						strClean = re.sub("\}\}.*","",strSplit[2],flags=re.S)
+						termList.append(strSplit2[2])
 					except IndexError:
-						pass
-					else:
-						derivedList.append(strClean)
-				elif "[[" in string:
-					strClean = re.sub("\]\].*","",string.strip("["),flags=re.S)
-					derivedList.append(strClean)
+						pass	
 				else:
-					strClean = re.sub("[\}]*\n","",string,flags=re.S)
-					derivedList.append(strClean)
+					termList.append(strClean2)
+		if "{{" + abbr in terms:
+			termSplit = terms.split("\n|")
+		elif "*" in terms:
+			termSplit = terms.split("*")
+		else:
+			raise Exception
+		for string in termSplit:
+			if ", " in string:
+				strSplit1 = string.split(", ")
+				for substring in strSplit1:
+					appendTerm(substring)
+			else:
+				appendTerm(string)
 	
 	if "===" + form + "===" in English:
 		EnSplit = English.split("===" + form + "===")
 		formSection = re.split(r"\n={3}[^=]*={3}\n",EnSplit[1])[0]
-		if "====derived terms====" in formSection:
-			formSectSplit = formSection.split("====derived terms====")
-			derivs = re.split(r"\n={4}[^=]*={4}\n",formSectSplit[1])[0]
-			derivedList = []
-			parseDerived()
-			if derivedList:
-				return derivedList
+		if "====" + type + "====" in formSection:
+			formSectSplit = formSection.split("====" + type + "====")
+			terms = re.split(r"\n={4}[^=]*={4}\n",formSectSplit[1])[0]
+			termList = []
+			parseLinkedTerms()
+			if termList:
+				return termList
 	
 if "==english==" in text:
 	textSplit = text.split("==english==")
 	English = re.split(r"\n={2}[^=]*={2}\n",textSplit[1])[0]
 	
 	masterDict = {}
-	if getEtymology() and getEtymology() is not None: # avoid <None>s and {}s/[]s in dict
-		masterDict["etymology"] = getEtymology()
-	if getPronunciation() and getPronunciation() is not None:
-		masterDict["pronunciation"] = getPronunciation()
-	if getAltForms() and getAltForms() is not None:
-		masterDict["alternative forms"] = getAltForms()
+	
+	masterDict["etymology"] = getEtymology()
+	masterDict["pronunciation"] = getPronunciation()
+	masterDict["alternative forms"] = getAltForms()
+	
 	masterDict["derived-terms"] = {}
-	if getDerived("noun") and getDerived("noun") is not None:
-		masterDict["derived-terms"]["from-noun"] = getDerived("noun")
-	if getDerived("verb") and getDerived("verb") is not None:
-		masterDict["derived-terms"]["from-verb"] = getDerived("verb")
-	if getDerived("adjective") and getDerived("adjective") is not None:
-		masterDict["derived-terms"]["from-adj"] = getDerived("adjective")
-	if getDerived("adverb") and getDerived("adverb") is not None:
-		masterDict["derived-terms"]["from-adv"] = getDerived("adverb")
+	masterDict["derived-terms"]["from-noun"] = getLinkedTerms("derived terms","der","noun")
+	masterDict["derived-terms"]["from-verb"] = getLinkedTerms("derived terms","der","verb")
+	masterDict["derived-terms"]["from-adj"] = getLinkedTerms("derived terms","der","adjective")
+	masterDict["derived-terms"]["from-adv"] = getLinkedTerms("derived terms","der","adverb")
+	
+	masterDict["related-terms"] = {}
+	masterDict["related-terms"]["to-noun"] = getLinkedTerms("related terms","rel","noun")
+	masterDict["related-terms"]["to-verb"] = getLinkedTerms("related terms","rel","verb")
+	masterDict["related-terms"]["to-adj"] = getLinkedTerms("related terms","rel","adjective")
+	masterDict["related-terms"]["to-adv"] = getLinkedTerms("related terms","rel","adverb")
+	
+	masterDict["hyponyms"] = {}
+	masterDict["hyponyms"]["of-noun"] = getLinkedTerms("hyponyms","foo","noun") # no template for it, so just use a string that will never occur
+	masterDict["hyponyms"]["of-verb"] = getLinkedTerms("hyponyms","foo","verb")
+	masterDict["hyponyms"]["of-adj"] = getLinkedTerms("hyponyms","foo","adjective")
+	masterDict["hyponyms"]["of-adv"] = getLinkedTerms("hyponyms","foo","adverb")
+	
+	for entry in list(masterDict): # delete []s, {}s, and Nones
+		try:
+			for subentry in list(masterDict[entry]):
+				if not masterDict[entry][subentry] or masterDict[entry][subentry] is None:
+					del masterDict[entry][subentry]
+		except (KeyError,TypeError):
+			pass
+		if not masterDict[entry] or masterDict[entry] is None:
+			del masterDict[entry]
+			
 	print(title)
 	print(masterDict)
 else:
