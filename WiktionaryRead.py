@@ -10,7 +10,7 @@ import pywikibot
 import re
 
 site = pywikibot.Site("en","wiktionary")
-title = u"hard"
+title = u"harp"
 page = pywikibot.Page(site,title)
 text = page.text.lower()
 
@@ -128,53 +128,54 @@ def getPronunciation():
 			del pronDict["audio"]
 		return pronDict
 		
-def getAltForms():
-	def parseAltForms():
-		AFSplit = altForms.split("* {{l|")
-		for string in AFSplit:
+def getLinkedTerms1(type,template):
+	def parseLinkedTerms():
+		termSplit = terms.split("* {{" + template + "|")
+		for string in termSplit:
 			strSplit = string.split("|")
 			try:
 				strClean = re.sub("\}\}.*","",strSplit[1],flags=re.S)
 			except IndexError:
 				pass
 			else:
-				AFList.append(strClean)
+				termList.append(strClean)
 		
-	if "===alternative forms===" in English:
-		EnSplit = English.split("===alternative forms===")
-		altForms = re.split(r"\n={3}[^=]*={3}\n",EnSplit[1])[0]
-		AFList = []
-		parseAltForms()
-		if AFList:
-			return AFList
+	if "===" + type + "===" in English:
+		EnSplit = English.split("===" + type + "===")
+		terms = re.split(r"\n={3}[^=]*={3}\n",EnSplit[1])[0]
+		termList = []
+		parseLinkedTerms()
+		if termList:
+			return termList
 
-def getLinkedTerms(type,abbr,form):
+def getLinkedTerms2(type,abbr,form):
 	def parseLinkedTerms():
 		def appendTerm(string):
-			strClean1 = re.sub(r" *\[+","",string,flags=re.S)
-			strClean2 = re.sub(r"[\}\]\<\n].*","",strClean1,flags=re.S)
-			if strClean2 and not ("{{" + abbr or "lang=" or "title=" or "{{checksense") in strClean2: # clean up params
-				if "|" in strClean2:
-					strSplit2 = strClean2.split("|")
+			strClean2 = re.sub(r" *\[+","",string,flags=re.S)
+			strClean3 = re.sub(r"[\}\]<\n].*","",strClean2,flags=re.S)
+			if strClean3 and not ("{{" + abbr or "lang=" or "title=" or "{{checksense") in strClean3: # clean up params
+				if "|" in strClean3:
+					strSplit2 = strClean3.split("|")
 					try:
 						termList.append(strSplit2[2])
 					except IndexError:
 						pass	
 				else:
-					termList.append(strClean2)
+					termList.append(strClean3)
 		if "{{" + abbr in terms:
 			termSplit = terms.split("\n|")
 		elif "*" in terms:
 			termSplit = terms.split("*")
 		else:
-			raise Exception
+			raise Exception(type)
 		for string in termSplit:
-			if ", " in string:
-				strSplit1 = string.split(", ")
+			strClean1 = re.sub("<!--.*-->","",string)
+			if ", " in strClean1:
+				strSplit1 = strClean1.split(", ")
 				for substring in strSplit1:
 					appendTerm(substring)
 			else:
-				appendTerm(string)
+				appendTerm(strClean1)
 	
 	if "===" + form + "===" in English:
 		EnSplit = English.split("===" + form + "===")
@@ -195,25 +196,28 @@ if "==english==" in text:
 	
 	masterDict["etymology"] = getEtymology()
 	masterDict["pronunciation"] = getPronunciation()
-	masterDict["alternative forms"] = getAltForms()
+	
+	masterDict["alternative forms"] = getLinkedTerms1("alternative forms","l")
 	
 	masterDict["derived-terms"] = {}
-	masterDict["derived-terms"]["from-noun"] = getLinkedTerms("derived terms","der","noun")
-	masterDict["derived-terms"]["from-verb"] = getLinkedTerms("derived terms","der","verb")
-	masterDict["derived-terms"]["from-adj"] = getLinkedTerms("derived terms","der","adjective")
-	masterDict["derived-terms"]["from-adv"] = getLinkedTerms("derived terms","der","adverb")
+	masterDict["derived-terms"]["from-noun"] = getLinkedTerms2("derived terms","der","noun")
+	masterDict["derived-terms"]["from-verb"] = getLinkedTerms2("derived terms","der","verb")
+	masterDict["derived-terms"]["from-adj"] = getLinkedTerms2("derived terms","der","adjective")
+	masterDict["derived-terms"]["from-adv"] = getLinkedTerms2("derived terms","der","adverb")
 	
 	masterDict["related-terms"] = {}
-	masterDict["related-terms"]["to-noun"] = getLinkedTerms("related terms","rel","noun")
-	masterDict["related-terms"]["to-verb"] = getLinkedTerms("related terms","rel","verb")
-	masterDict["related-terms"]["to-adj"] = getLinkedTerms("related terms","rel","adjective")
-	masterDict["related-terms"]["to-adv"] = getLinkedTerms("related terms","rel","adverb")
+	masterDict["related-terms"]["to-noun"] = getLinkedTerms2("related terms","rel","noun")
+	masterDict["related-terms"]["to-verb"] = getLinkedTerms2("related terms","rel","verb")
+	masterDict["related-terms"]["to-adj"] = getLinkedTerms2("related terms","rel","adjective")
+	masterDict["related-terms"]["to-adv"] = getLinkedTerms2("related terms","rel","adverb")
 	
 	masterDict["hyponyms"] = {}
-	masterDict["hyponyms"]["of-noun"] = getLinkedTerms("hyponyms","foo","noun") # no template for it, so just use a string that will never occur
-	masterDict["hyponyms"]["of-verb"] = getLinkedTerms("hyponyms","foo","verb")
-	masterDict["hyponyms"]["of-adj"] = getLinkedTerms("hyponyms","foo","adjective")
-	masterDict["hyponyms"]["of-adv"] = getLinkedTerms("hyponyms","foo","adverb")
+	masterDict["hyponyms"]["of-noun"] = getLinkedTerms2("hyponyms","hyp","noun") # no template for it, so just use a string that will never occur
+	masterDict["hyponyms"]["of-verb"] = getLinkedTerms2("hyponyms","hyp","verb")
+	masterDict["hyponyms"]["of-adj"] = getLinkedTerms2("hyponyms","hyp","adjective")
+	masterDict["hyponyms"]["of-adv"] = getLinkedTerms2("hyponyms","hyp","adverb")
+	
+	masterDict["anagrams"] = getLinkedTerms1("anagrams","anagrams")
 	
 	for entry in list(masterDict): # delete []s, {}s, and Nones
 		try:
