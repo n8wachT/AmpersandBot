@@ -10,7 +10,7 @@ import pywikibot
 import re
 
 site = pywikibot.Site("en","wiktionary")
-title = #u"your entry here"
+title = # u"your entry here"
 page = pywikibot.Page(site,title)
 text = page.text
 
@@ -55,19 +55,21 @@ def getPronunciation():
 	def parsePronunciation():
 		def tryKeyValue(template,key,param):
 			try:
-				value = string.split("{{" + template + "|")[1].split("}}")[0].split("|")[param - 1] # get a specific parameter
+				values = string.split("{{" + template + "|")[1].split("}}")[0].split("|")
 			except IndexError:
 				pass
 			else:
 				if key == "audio": # get lang code of audio
-					if re.search(r"audio \(.*\)",string):
-						lang = string.split("{{" + template + "|")[1].split("}}")[0].split("|")[param].replace("audio (","").replace(")","")
+					if re.search(r"Audio \(.*\)",string):
+						lang = values[param].replace("Audio (","").replace(")","")
 					else:
 						lang = "unknown/all"
-					pronDict["audio"][lang] = value
+					pronDict["audio"][lang] = values[param-1]
 				else:
-					pronDict[key] = value
-				
+					pronDict[key] = []
+					for value in values:
+						if "lang=" not in value:
+							pronDict[key].append(value)
 		pronSplit = pronunciation.split("* ")
 		pronDict["accents"] = {}
 		pronDict["audio"] = {}
@@ -118,7 +120,7 @@ def getPronunciation():
 			
 			tryKeyValue("audio","audio",1)
 			tryKeyValue("rhymes","rhymes",1)
-			tryKeyValue("homophones","homophones",2)
+			tryKeyValue("homophones","homophones",1)
 			
 	if "===Pronunciation===" in English:
 		EnSplit = English.split("===Pronunciation===")
@@ -131,12 +133,15 @@ def getLinkedTerms1(type,template): # for first-level lists
 	def parseLinkedTerms():
 		termSplit = terms.split("* {{" + template + "|") # split bullet pts
 		for string in termSplit:
-			strSplit = string.split("|") # split template params
-			try:
-				strClean = re.sub("\}\}.*","",strSplit[1],flags=re.S) # rm }} and everything after it
-			except IndexError:
+			if "|" in string:
+				strSplit = string.split("|")[1:] # skip lang param
+				for substring in strSplit:
+					substrClean = re.sub("\}\}.*","",substring,flags=re.S) # rm }} and everything after it
+					termList.append(substrClean)
+			elif "" in string: # rm linebreaks
 				pass
 			else:
+				strClean = re.sub("\}\}.*","",string,flags=re.S)
 				termList.append(strClean)
 		
 	if "===" + type + "===" in English:
@@ -152,7 +157,7 @@ def getLinkedTerms2(type,abbr,form): # for second-level lists
 		def appendTerm(string):
 			strClean2 = re.sub(r" *\[+","",string,flags=re.S) # rm leading space and [s
 			strClean3 = re.sub(r"[\}\]\n].*","",strClean2,flags=re.S) # rm trailing }, ], and \n, plus following chars
-			if strClean3 and not ("{{" + abbr or "lang=" or "title=" or "{{checksense") in strClean3: # clean up params
+			if strClean3 and "{{" + abbr not in strClean3 and "lang=" not in strClean3 and "title=" not in strClean3 and "{{checksense" not in strClean3: # clean up params
 				if "|" in strClean3:
 					strSplit2 = strClean3.split("|") # split template params
 					try:
@@ -196,7 +201,7 @@ if "==English==" in text:
 	masterDict["etymology"] = getEtymology()
 	masterDict["pronunciation"] = getPronunciation()
 	
-	masterDict["alternative forms"] = getLinkedTerms1("alternative forms","l")
+	masterDict["alternative forms"] = getLinkedTerms1("Alternative forms","l")
 	
 	masterDict["derived-terms"] = {}
 	masterDict["derived-terms"]["from-noun"] = getLinkedTerms2("Derived terms","der","Noun")
