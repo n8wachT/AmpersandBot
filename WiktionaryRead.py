@@ -10,7 +10,7 @@ import pywikibot
 import re
 
 site = pywikibot.Site("en","wiktionary")
-title = u"hard"
+title = #u"your entry here"
 page = pywikibot.Page(site,title)
 text = page.text
 
